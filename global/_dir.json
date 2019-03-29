@@ -1,0 +1,10 @@
+{
+  "_id": "script.js.global",
+  "common": {
+    "name": "global"
+  },
+  "type": "channel",
+  "native": {},
+  "from": "system.host.odroid.cli",
+  "ts": 1553241257137
+}

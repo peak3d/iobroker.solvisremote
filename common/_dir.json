@@ -1,0 +1,10 @@
+{
+  "_id": "script.js.common",
+  "common": {
+    "name": "common"
+  },
+  "type": "channel",
+  "native": {},
+  "from": "system.host.odroid.cli",
+  "ts": 1553241257144
+}

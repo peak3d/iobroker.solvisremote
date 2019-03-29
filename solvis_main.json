@@ -1,0 +1,110 @@
+/* -- do not edit following lines - START --
+{
+  "expert": true,
+  "debug": false,
+  "verbose": false,
+  "enabled": false
+}
+-- do not edit previous lines - END --*/
+var request = require("request");
+var authorization="";
+const solvisurl = 'http://[solvisRemoteIp]/sc2_val.xml';
+const solvisAuth = '[user]:[pass]';
+var StateCommon;
+
+
+function create(dp) {
+    createState('solvis.' + dp.name, 0, {name:dp.name, desc:'', type:'number', role:'', read:true, write:false, def:0}, function () {});
+}
+
+//11char xml / 12 char header / 6 char time / 4 char anlagentyp / 4 char systemnummer
+const dO = 37;
+const dataPoints = [
+    {name:'S1',pos:dO + 0,size:4,limit:true},
+    {name:'S2',pos:dO + 4,size:4,limit:true},
+    {name:'S3',pos:dO + 8,size:4,limit:true},
+    {name:'S4',pos:dO + 12,size:4,limit:true},
+    {name:'S5',pos:dO + 16,size:4,limit:true},
+    {name:'S6',pos:dO + 20,size:4,limit:true},
+    {name:'S7',pos:dO + 24,size:4,limit:true},
+    {name:'S8',pos:dO + 28,size:4,limit:true},
+    {name:'S9',pos:dO + 32,size:4,limit:true},
+    {name:'S10',pos:dO + 36,size:4,limit:true},
+    {name:'S11',pos:dO + 40,size:4,limit:true},
+    {name:'S12',pos:dO + 44,size:4,limit:true},
+    {name:'S13',pos:dO + 48,size:4,limit:true},
+    {name:'S14',pos:dO + 52,size:4,limit:true},
+    {name:'S15',pos:dO + 56,size:4,limit:true},
+    {name:'S16',pos:dO + 60,size:4,limit:true},
+    {name:'S17',pos:dO + 68,size:4,limit:false},
+    {name:'S18',pos:dO + 64,size:4,limit:false},
+    {name:'RF1',pos:dO + 92,size:4,limit:true},
+    {name:'RF2',pos:dO + 96,size:4,limit:true},
+    {name:'RF3',pos:dO + 100,size:4,limit:true},
+    {name:'I1',pos:dO + 72,size:4,limit:false},
+    {name:'I2',pos:dO + 76,size:4,limit:false},
+    {name:'I3',pos:dO + 80,size:4,limit:false},
+    {name:'A1',pos:dO + 104,size:2,limit:false},
+    {name:'A2',pos:dO + 106,size:2,limit:false},
+    {name:'A3',pos:dO + 108,size:2,limit:false},
+    {name:'A4',pos:dO + 110,size:2,limit:false},
+    {name:'A5',pos:dO + 112,size:2,limit:false},
+    {name:'A6',pos:dO + 114,size:2,limit:false},
+    {name:'A7',pos:dO + 116,size:2,limit:false},
+    {name:'A8',pos:dO + 118,size:2,limit:false},
+    {name:'A9',pos:dO + 120,size:2,limit:false},
+    {name:'A10',pos:dO + 122,size:2,limit:false},
+    {name:'A11',pos:dO + 124,size:2,limit:false},
+    {name:'A12',pos:dO + 126,size:2,limit:false},
+    {name:'A13',pos:dO + 128,size:2,limit:false},
+    {name:'A14',pos:dO + 130,size:2,limit:false},
+    {name:'O1',pos:dO + 84,size:2,limit:false},
+    {name:'O2',pos:dO + 86,size:2,limit:false},
+    {name:'O3',pos:dO + 88,size:2,limit:false},
+    {name:'O4',pos:dO + 90,size:2,limit:false},
+    {name:'O5',pos:0,size:2,limit:false}];
+
+// Create device + ping. Used to stop polling if no vis requests solvis data.
+createState('solvis.ping', false, {name:'ping', desc:'vis health check', type:'boolean', role:'', read:true, write:true, def:false});
+
+// Create states
+dataPoints.forEach(create);
+
+function Update(body)
+{
+    this.body = body;
+    dataPoints.forEach(function(dp) {
+        if (dp.pos > 0)
+        {
+            var val = dp.size == 4 ? parseInt(this.body.substr(dp.pos+2,2)+this.body.substr(dp.pos,2), 16) : parseInt(this.body.substr(dp.pos,2),16);
+            if (dp.limit && val > 32767)
+                val -= 65536;
+            if (getState('solvis.' + dp.name).val != val)
+                setState('solvis.' + dp.name, val, true);
+        }
+    }, this);
+}
+
+var Intervall = setInterval(function () {
+if (Date.now() - getState('solvis.ping').ts < 20000)
+try {
+  request({url:solvisurl, headers:{Authorization: authorization, Connection:'Keep-Alive'}, json:true}, function (error, response, result) {
+    if (response.statusCode == 401)
+    {
+        authorization = require('digest-header')('GET', '/sc2_val.xml', response.headers['www-authenticate'], solvisAuth);
+        console.log('New Authorization:' + authorization);
+    }
+    else
+    {
+        if (response.statusCode == 200)
+            Update(response.body);
+        else
+            throw(response);
+    }
+  }).on("error", function (e) {console.error(e);});
+} catch (e)
+{
+    console.error(e);
+    clearInterval(Intervall);
+}
+}, 1000);
